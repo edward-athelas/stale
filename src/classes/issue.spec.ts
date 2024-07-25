@@ -65,7 +65,7 @@ describe('Issue', (): void => {
       exemptDraftPr: false,
       closeIssueReason: '',
       includeOnlyAssigned: false,
-      cachePrefix: '',
+      cachePrefix: ''
     };
     issueInterface = {
       title: 'dummy-title',

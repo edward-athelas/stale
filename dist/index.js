@@ -1621,7 +1621,7 @@ const checkIfCacheExists = (cacheKey) => __awaiter(void 0, void 0, void 0, funct
         const cachesResult = yield client.rest.actions.getActionsCacheList({
             owner: github_1.context.repo.owner,
             repo: github_1.context.repo.repo,
-            key: cacheKey, // prefix matching
+            key: cacheKey // prefix matching
         });
         const caches = cachesResult.data['actions_caches'] || [];
         return caches.some(cache => cache['key'] === cacheKey);
@@ -1638,7 +1638,7 @@ const resetCacheWithOctokit = (cacheKey) => __awaiter(void 0, void 0, void 0, fu
         yield client.rest.actions.deleteActionsCacheByKey({
             owner: github_1.context.repo.owner,
             repo: github_1.context.repo.repo,
-            key: cacheKey,
+            key: cacheKey
         });
     }
     catch (error) {

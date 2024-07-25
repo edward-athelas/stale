@@ -6,6 +6,7 @@ import * as core from '@actions/core';
 import {context, getOctokit} from '@actions/github';
 import {retry as octokitRetry} from '@octokit/plugin-retry';
 import * as cache from '@actions/cache';
+import {IIssuesProcessorOptions} from '../../interfaces/issues-processor-options';
 
 const CACHE_KEY = '_state';
 const STATE_FILE = 'state.txt';
@@ -68,15 +69,26 @@ const resetCacheWithOctokit = async (cacheKey: string): Promise<void> => {
   }
 };
 export class StateCacheStorage implements IStateStorage {
+  /**
+   * @private don't mutate in the debug mode
+   */
+  private readonly statePrefix: string;
+
+  constructor(options: IIssuesProcessorOptions) {
+    this.statePrefix = options.cachePrefix;
+  }
+
   async save(serializedState: string): Promise<void> {
     const tmpDir = mkTempDir();
-    const filePath = path.join(tmpDir, STATE_FILE);
+    const state_file = `${this.statePrefix}_${STATE_FILE}`;
+    const filePath = path.join(tmpDir, state_file);
     fs.writeFileSync(filePath, serializedState);
 
     try {
-      const cacheExists = await checkIfCacheExists(CACHE_KEY);
+      const cache_key = `${this.statePrefix}${CACHE_KEY}`;
+      const cacheExists = await checkIfCacheExists(cache_key);
       if (cacheExists) {
-        await resetCacheWithOctokit(CACHE_KEY);
+        await resetCacheWithOctokit(cache_key);
       }
       const fileSize = fs.statSync(filePath).size;
 
@@ -85,7 +97,7 @@ export class StateCacheStorage implements IStateStorage {
         return;
       }
 
-      await cache.saveCache([path.dirname(filePath)], CACHE_KEY);
+      await cache.saveCache([path.dirname(filePath)], cache_key);
     } catch (error) {
       core.warning(
         `Saving the state was not successful due to "${
@@ -99,10 +111,12 @@ export class StateCacheStorage implements IStateStorage {
 
   async restore(): Promise<string> {
     const tmpDir = mkTempDir();
-    const filePath = path.join(tmpDir, STATE_FILE);
+    const state_file = `${this.statePrefix}_${STATE_FILE}`;
+    const filePath = path.join(tmpDir, state_file);
     unlinkSafely(filePath);
     try {
-      const cacheExists = await checkIfCacheExists(CACHE_KEY);
+      const cache_key = `${this.statePrefix}${CACHE_KEY}`;
+      const cacheExists = await checkIfCacheExists(cache_key);
       if (!cacheExists) {
         core.info(
           'The saved state was not found, the process starts from the first issue.'
@@ -110,7 +124,7 @@ export class StateCacheStorage implements IStateStorage {
         return '';
       }
 
-      await cache.restoreCache([path.dirname(filePath)], CACHE_KEY);
+      await cache.restoreCache([path.dirname(filePath)], cache_key);
 
       if (!fs.existsSync(filePath)) {
         core.warning(
@@ -118,7 +132,7 @@ export class StateCacheStorage implements IStateStorage {
         );
         return '';
       }
-      return fs.readFileSync(path.join(tmpDir, STATE_FILE), {
+      return fs.readFileSync(path.join(tmpDir, state_file), {
         encoding: 'utf8'
       });
     } catch (error) {

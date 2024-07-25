@@ -1651,22 +1651,27 @@ const resetCacheWithOctokit = (cacheKey) => __awaiter(void 0, void 0, void 0, fu
     }
 });
 class StateCacheStorage {
+    constructor(options) {
+        this.statePrefix = options.cachePrefix;
+    }
     save(serializedState) {
         return __awaiter(this, void 0, void 0, function* () {
             const tmpDir = mkTempDir();
-            const filePath = path_1.default.join(tmpDir, STATE_FILE);
+            const state_file = `${this.statePrefix}_${STATE_FILE}`;
+            const filePath = path_1.default.join(tmpDir, state_file);
             fs_1.default.writeFileSync(filePath, serializedState);
             try {
-                const cacheExists = yield checkIfCacheExists(CACHE_KEY);
+                const cache_key = `${this.statePrefix}${CACHE_KEY}`;
+                const cacheExists = yield checkIfCacheExists(cache_key);
                 if (cacheExists) {
-                    yield resetCacheWithOctokit(CACHE_KEY);
+                    yield resetCacheWithOctokit(cache_key);
                 }
                 const fileSize = fs_1.default.statSync(filePath).size;
                 if (fileSize === 0) {
                     core.info(`the state will be removed`);
                     return;
                 }
-                yield cache.saveCache([path_1.default.dirname(filePath)], CACHE_KEY);
+                yield cache.saveCache([path_1.default.dirname(filePath)], cache_key);
             }
             catch (error) {
                 core.warning(`Saving the state was not successful due to "${error.message || 'unknown reason'}"`);
@@ -1679,20 +1684,22 @@ class StateCacheStorage {
     restore() {
         return __awaiter(this, void 0, void 0, function* () {
             const tmpDir = mkTempDir();
-            const filePath = path_1.default.join(tmpDir, STATE_FILE);
+            const state_file = `${this.statePrefix}_${STATE_FILE}`;
+            const filePath = path_1.default.join(tmpDir, state_file);
             unlinkSafely(filePath);
             try {
-                const cacheExists = yield checkIfCacheExists(CACHE_KEY);
+                const cache_key = `${this.statePrefix}${CACHE_KEY}`;
+                const cacheExists = yield checkIfCacheExists(cache_key);
                 if (!cacheExists) {
                     core.info('The saved state was not found, the process starts from the first issue.');
                     return '';
                 }
-                yield cache.restoreCache([path_1.default.dirname(filePath)], CACHE_KEY);
+                yield cache.restoreCache([path_1.default.dirname(filePath)], cache_key);
                 if (!fs_1.default.existsSync(filePath)) {
                     core.warning('Unknown error when unpacking the cache, the process starts from the first issue.');
                     return '';
                 }
-                return fs_1.default.readFileSync(path_1.default.join(tmpDir, STATE_FILE), {
+                return fs_1.default.readFileSync(path_1.default.join(tmpDir, state_file), {
                     encoding: 'utf8'
                 });
             }
@@ -2229,6 +2236,7 @@ var Option;
     Option["IgnorePrUpdates"] = "ignore-pr-updates";
     Option["ExemptDraftPr"] = "exempt-draft-pr";
     Option["CloseIssueReason"] = "close-issue-reason";
+    Option["CachePrefix"] = "cache-prefix";
 })(Option || (exports.Option = Option = {}));
 
 
@@ -2574,7 +2582,8 @@ function _getAndValidateArgs() {
         ignorePrUpdates: _toOptionalBoolean('ignore-pr-updates'),
         exemptDraftPr: core.getInput('exempt-draft-pr') === 'true',
         closeIssueReason: core.getInput('close-issue-reason'),
-        includeOnlyAssigned: core.getInput('include-only-assigned') === 'true'
+        includeOnlyAssigned: core.getInput('include-only-assigned') === 'true',
+        cachePrefix: core.getInput('cache-prefix')
     };
     for (const numberInput of ['days-before-stale']) {
         if (isNaN(parseFloat(core.getInput(numberInput)))) {
@@ -2701,7 +2710,7 @@ exports.getStateInstance = void 0;
 const state_1 = __nccwpck_require__(5186);
 const state_cache_storage_1 = __nccwpck_require__(3709);
 const getStateInstance = (options) => {
-    const storage = new state_cache_storage_1.StateCacheStorage();
+    const storage = new state_cache_storage_1.StateCacheStorage(options);
     return new state_1.State(storage, options);
 };
 exports.getStateInstance = getStateInstance;
